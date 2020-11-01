@@ -179,7 +179,7 @@ group by status
 order by cnt, maxdif desc
 ```
 **Вариант 2:**
-```postgresql
+```sql
 with rental_scheme as (
 select
 	rental_id,
@@ -197,8 +197,4 @@ select
 	max(back - dur) as max_late_return
 from
 	rental_scheme
-```
-
-```javascript
-const a = 0
 ```
