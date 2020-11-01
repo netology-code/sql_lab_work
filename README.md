@@ -1,18 +1,19 @@
 Здесь решение лабораторной работы. 
+
 Коллеги, не удивляйтесь наличию нескольких решений в заданиях, а так же тому, что Ваше решение может отличаться от приведенных, 
 при условии, что результаты совпадают - такова особенность реляционных БД: “Из одних и тех же таблиц одинаковые результаты можно
  получить разными способами”
 
-**1. Рассчитайте совокупный доход всех магазинов на каждую дату.**
+###1. Рассчитайте совокупный доход всех магазинов на каждую дату.
 
-Вариант 1:
+**Вариант 1:**
 ```postgresql
 select date(p.payment_date), sum(amount)
 from payment p
 group by date(p.payment_date)
 order by date(p.payment_date)
 ```
-Вариант 2:
+**Вариант 2:**
 ```postgresql
 with pds as (
     select cast(payment_date as date) as payment_date, sum(amount) as amount
@@ -24,10 +25,9 @@ from pds
 order by payment_date;
 ```
 
-**2. Выведите наиболее и наименее востребованные жанры (те, которые арендовали наибольшее/наименьшее количество раз), 
-число их общих продаж и сумму дохода**
+###2. Выведите наиболее и наименее востребованные жанры (те, которые арендовали наибольшее/наименьшее количество раз), число их общих продаж и сумму дохода*
 
-Вариант 1:
+**Вариант 1:**
 ```postgresql
 with trds as(
     select c.name as category_name, count(*) as cnt, sum(p.amount) as sums
@@ -44,7 +44,7 @@ select category_name, cnt, sums
 from trds 
 where cnt = (select max(cnt) from trds) or cnt = (select min(cnt) from trds)
 ```
-Вариант 2:
+**Вариант 2:**
 ```postgresql
 (select 'наибольшее кол-во продаж - ' || c.name || ' в размере ' || count(p.rental_id) || ' на сумму ' || sum(p.amount)
 from payment p
@@ -69,115 +69,118 @@ order by count(p.rental_id) asc
 limit 1)
 ```
 
-**3. Какова средняя арендная ставка для каждого жанра? 
-(упорядочить по убыванию, среднее значение округлить до сотых)**
+###3. Какова средняя арендная ставка для каждого жанра? (упорядочить по убыванию, среднее значение округлить до сотых)**
 
-Решение:
-
+**Решение:**
+```postgresql
 select c.name as category_name, round(avg(f.rental_rate/f.rental_duration), 2) as avr
 from category c
-join film_category fc
-using (category_id)
-join film f
-using (film_id)
+join film_category fc using (category_id)
+join film f using (film_id)
 group by c.name
 order by avr desc
+```
 
+####================= дополнительные задания =================
 
-================= дополнительные задания =================
+###4. Cоставить список из 5 клиентов, которые заплатили больше всего денег за аренду фильмов с 10 по 13 апреля включительно.
+*формат списка: 'Имя_клиента Фамилия_клиента email address is: e-mail_клиента'*
 
-4. Cоставить список из 5 самых дорогих клиентов (арендовавших фильмы с 10 по 13 апреля).
-формат списка:
-'Имя_клиента Фамилия_клиента email address is: e-mail_клиента'
-
-Варианты решения:
-
-select first_name||' '||last_name||'''s email address is: '||email as name_and_email
+**Вариант 1:**
+```postgresql
+select first_name || ' ' || last_name || 's email address is: ' || email as name_and_email
 from customer
 where customer_id in (
 	select customer_id from (
 		select distinct customer_id, sum(amount)
 		from payment
 		where extract(month from payment_date) = 4
-		and extract(day from payment_date) between 10 and 13
+		and extract(day from payment_date) between 10 and 14
 		group by customer_id
 		order by sum(amount) desc
 		limit 5
 		) as top_five
 	);
-
-2. select c.first_name || ’ ’ || c.last_name || ’ email address is: ’ || c.email as clients_list
+```
+**Вариант 2:**
+```postgresql
+select c.first_name || ' ' || c.last_name || ' email address is: ' || c.email as clients_list
 from customer c
-inner join payment p
-on p.customer_id = c.customer_id 
-and p.payment_date between ‘20070410’ and ‘20070413’
+inner join payment p on p.customer_id = c.customer_id 
+    and p.payment_date between '20070410' and '20070413'::date + interval '1 day'
 group by c.first_name, c.last_name, c.email
 order by sum(p.amount) desc
 limit 5
-
-3. select
+```
+**Вариант 3:**
+```postgresql
+select
 	first_name,
 	last_name,
 	concat('email address is ', email) as email
 from
 	payment as r
-	inner join customer 
-	using (customer_id)
-where
-	payment_date::date between '2007-04-10' and '2007-04-13'
-group by first_name, last_name, email
-order by sum(amount) desc
+inner join 
+    customer using (customer_id)
+where 
+    payment_date::date between '2007-04-10' and '2007-04-13'::date + interval '1 day'
+group by 
+    first_name, last_name, email
+order by 
+    sum(amount) desc
 limit 5;
-
-
-4. select ci.first_name, ci.last_name, concat('email address is:' ,ci.email) from customer as ci
+```
+**Вариант 4:**
+```postgresql
+select ci.first_name, ci.last_name, concat('email address is:' ,ci.email) from customer as ci
 inner join (
-select pay.customer_id, sum(pay.amount) from payment as pay
-where pay.payment_date between '2007-04-10' and '2007-04-13'
-group by pay.customer_id
-order by sum(pay.amount) desc limit 5) as top 
-on top.customer_id =ci.customer_id;
-
-5. select
-format(’%s %s email address is: %s’, b.first_name, b.last_name, b.email) as “Список клиентов”
-from public.customer b
-inner join public.rental a ON b.customer_id = a.customer_id
-inner JOIN public.payment c ON a.rental_id = c.rental_id
-WHERE DATE (c.payment_date) <= ‘2007-04-13’ AND
-DATE (c.payment_date) >= ‘2007-04-10’
-GROUP BY b.first_name, b.last_name, b.email
+    select pay.customer_id, sum(pay.amount) 
+    from payment as pay
+    where pay.payment_date between '2007-04-10' and '2007-04-13'::date + interval '1 day'
+    group by pay.customer_id
+    order by sum(pay.amount) desc limit 5) as top on top.customer_id = ci.customer_id;
+```
+**Вариант 5:**
+```postgresql
+select
+format('%s %s email address is: %s', b.first_name, b.last_name, b.email) as "Список клиентов"
+from customer b
+inner join rental a on b.customer_id = a.customer_id
+inner join payment c on a.rental_id = c.rental_id
+where date(c.payment_date) <= '2007-04-13'::date + interval '1 day' and date(c.payment_date) >= '2007-04-10'
+group by b.first_name, b.last_name, b.email
 order by sum(c.amount) desc
-LIMIT 5;
+limit 5;
+```
 
+###5. Сколько арендованных фильмов было возвращено в срок, до срока возврата и после, выведите максимальную разницу со сроком?
+***Дополнительно:** найдите объяснение почему в двух вариантах отличается результат*
 
-5. Сколько арендованных фильмов было возвращено в срок, 
-до срока возврата и после, выведите максимальную разницу со сроком?
-
-Варианты решения
-
+**Вариант 1:**
+```postgresql
 with rdt as (
-   select inventory_id, DATE_PART('day', return_date - rental_date) as ddate
-   from rental
+    select inventory_id, date_part('day', return_date - rental_date) as ddate
+    from rental
 ),
 sttbl as (
-   select abs(rental_duration - ddate) as absdif,
-	case 
-	   when rental_duration > ddate then 'раньше'
-	   when rental_duration = ddate then 'в срок'
-	   else 'позже'
-	end as status
-   from film f
-   join inventory i
-   using (film_id)
-   join rdt
-   using (inventory_id)
+    select abs(rental_duration - ddate) as absdif,
+    case 
+        when rental_duration > ddate then 'раньше'
+        when rental_duration = ddate then 'в срок'
+        else 'позже'
+    end as status
+    from film f
+    join inventory i using (film_id)
+    join rdt using (inventory_id)
 )
 select status, count(*) as cnt, round(max(absdif)) as maxdif
 from sttbl
 group by status
 order by cnt, maxdif desc
-
-2. with rental_scheme as (
+```
+**Вариант 2:**
+```postgresql
+with rental_scheme as (
 select
 	rental_id,
 	rental_duration as dur,
@@ -194,3 +197,4 @@ select
 	max(back - dur) as max_late_return
 from
 	rental_scheme
+```
