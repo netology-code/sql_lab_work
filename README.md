@@ -7,14 +7,14 @@
 ### 1. Рассчитайте совокупный доход всех магазинов на каждую дату.
 
 **Вариант 1:**
-```postgresql
+```sql
 select date(p.payment_date), sum(amount)
 from payment p
 group by date(p.payment_date)
 order by date(p.payment_date)
 ```
 **Вариант 2:**
-```postgresql
+```sql
 with pds as (
     select cast(payment_date as date) as payment_date, sum(amount) as amount
     from payment
@@ -28,7 +28,7 @@ order by payment_date;
 ### 2. Выведите наиболее и наименее востребованные жанры (те, которые арендовали наибольшее/наименьшее количество раз), число их общих продаж и сумму дохода*
 
 **Вариант 1:**
-```postgresql
+```sql
 with trds as(
     select c.name as category_name, count(*) as cnt, sum(p.amount) as sums
     from category c
@@ -45,7 +45,7 @@ from trds
 where cnt = (select max(cnt) from trds) or cnt = (select min(cnt) from trds)
 ```
 **Вариант 2:**
-```postgresql
+```sql
 (select 'наибольшее кол-во продаж - ' || c.name || ' в размере ' || count(p.rental_id) || ' на сумму ' || sum(p.amount)
 from payment p
 inner join rental r on r.rental_id = p.rental_id
@@ -72,7 +72,7 @@ limit 1)
 ### 3. Какова средняя арендная ставка для каждого жанра? (упорядочить по убыванию, среднее значение округлить до сотых)**
 
 **Решение:**
-```postgresql
+```sql
 select c.name as category_name, round(avg(f.rental_rate/f.rental_duration), 2) as avr
 from category c
 join film_category fc using (category_id)
@@ -87,7 +87,7 @@ order by avr desc
 *формат списка: 'Имя_клиента Фамилия_клиента email address is: e-mail_клиента'*
 
 **Вариант 1:**
-```postgresql
+```sql
 select first_name || ' ' || last_name || 's email address is: ' || email as name_and_email
 from customer
 where customer_id in (
@@ -103,7 +103,7 @@ where customer_id in (
 	);
 ```
 **Вариант 2:**
-```postgresql
+```sql
 select c.first_name || ' ' || c.last_name || ' email address is: ' || c.email as clients_list
 from customer c
 inner join payment p on p.customer_id = c.customer_id 
@@ -113,7 +113,7 @@ order by sum(p.amount) desc
 limit 5
 ```
 **Вариант 3:**
-```postgresql
+```sql
 select
 	first_name,
 	last_name,
@@ -131,7 +131,7 @@ order by
 limit 5;
 ```
 **Вариант 4:**
-```postgresql
+```sql
 select ci.first_name, ci.last_name, concat('email address is:' ,ci.email) from customer as ci
 inner join (
     select pay.customer_id, sum(pay.amount) 
@@ -141,7 +141,7 @@ inner join (
     order by sum(pay.amount) desc limit 5) as top on top.customer_id = ci.customer_id;
 ```
 **Вариант 5:**
-```postgresql
+```sql
 select
 format('%s %s email address is: %s', b.first_name, b.last_name, b.email) as "Список клиентов"
 from customer b
@@ -157,7 +157,7 @@ limit 5;
 ***Дополнительно:** найдите объяснение почему в двух вариантах отличается результат*
 
 **Вариант 1:**
-```postgresql
+```sql
 with rdt as (
     select inventory_id, date_part('day', return_date - rental_date) as ddate
     from rental
