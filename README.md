@@ -198,3 +198,7 @@ select
 from
 	rental_scheme
 ```
+
+```javascript
+const a = 0
+```
